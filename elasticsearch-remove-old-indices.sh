@@ -26,7 +26,7 @@ USAGE: ./elasticsearch-remove-old-indices.sh [OPTIONS]
 
 OPTIONS:
   -h    Show this message
-  -i    Indices to keep (default: 14)
+  -i    Indices to keep (default: 30)
   -e    Elasticsearch URL (default: http://localhost:9200)
   -g    Consistent index name (default: logstash)
   -o    Output actions to a specified file
@@ -36,7 +36,7 @@ EXAMPLES:
   ./elasticsearch-remove-old-indices.sh
 
     Connect to http://localhost:9200 and get a list of indices matching
-    'logstash'. Keep the top lexicographical 14 indices, delete any others.
+    'logstash'. Keep the top lexicographical 30 indices, delete any others.
 
   ./elasticsearch-remove-old-indices.sh -e "http://es.example.com:9200" \
   -i 28 -g my-logs -o /mnt/es/logfile.log
@@ -51,13 +51,13 @@ EOF
 
 # Defaults
 ELASTICSEARCH="http://localhost:9200"
-KEEP=14
+KEEP=30
 GREP="logstash"
 
 # Validate numeric values
 RE_D="^[0-9]+$"
 
-while getopts ":i:e:g:o:h" flag
+while getopts ":i:e:g:o:hd" flag
 do
   case "$flag" in
     h)
@@ -79,6 +79,9 @@ do
       ;;
     o)
       LOGFILE=$OPTARG
+      ;;
+    d)
+      DO_DELETE=Y
       ;;
     ?)
       usage
@@ -113,12 +116,15 @@ if [ ${#INDEX[@]} -gt $KEEP ]; then
   for index in ${INDEX[@]:$KEEP};do
     # We don't want to accidentally delete everything
     if [ -n "$index" ]; then
+     echo "index to delete: $index"
+     if [ "X$DO_DELETE" = "XY" ]; then
       if [ -z "$LOGFILE" ]; then
         curl -s -XDELETE "$ELASTICSEARCH/$index/" > /dev/null
       else
         echo `date "+[%Y-%m-%d %H:%M] "`" Deleting index: $index." >> $LOGFILE
         curl -s -XDELETE "$ELASTICSEARCH/$index/" >> $LOGFILE
       fi
+     fi
     fi
   done
 fi
